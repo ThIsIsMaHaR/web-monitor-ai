@@ -1,21 +1,131 @@
-# 🌐 Web Monitor AI
+Project Sheet — Web Monitor AI
+🔹 Project Name
 
-A lightweight web monitoring tool enhanced with AI to track site status, response times, and provide intelligent alerts.
+Web Monitor AI
 
-## 🚀 Features
-- Real-time uptime monitoring.
-- AI-driven analysis of downtime patterns.
-- **API Testing:** Fully documented and tested via **Postman**.
+🔹 Overview
 
-## 🛠️ Tech Stack
-- **Language:** Node.js / Python (Select your choice)
-- **Testing:** Postman
-- **AI Integration:**
+A full-stack AI-powered web monitoring application that tracks changes on specified web pages, generates diffs between versions, and summarizes changes using an LLM.
 
-## 🚦 Getting Started
-1. Clone the repo: `git clone <your-repo-link>`
-2. Install dependencies: `npm install` (or `pip install -r requirements.txt`)
-3. Run the monitor: `npm start` (or `python main.py`)
+🔹 Problem Statement Solved
 
-## 🧪 API Testing
-The API endpoints are tested using Postman. You can find the collection in the `/tests` folder.
+Users can:
+
+Add 3–8 links to monitor
+
+Fetch latest page content
+
+Detect changes via diff comparison
+
+Generate AI-based summaries of changes
+
+View history of last 5 checks per link
+
+🔹 Architecture
+
+Frontend:
+
+React (Vite)
+
+Axios for API communication
+
+Backend:
+
+Node.js
+
+Express
+
+MongoDB (Atlas)
+
+Mongoose
+
+AI Integration:
+
+OpenAI API
+
+Model: gpt-4o-mini
+
+Used for summarizing content differences
+
+🔹 Core Flow
+
+User adds link
+
+Backend fetches page content
+
+Previous snapshot retrieved
+
+Diff generated
+
+Diff sent to LLM
+
+Summary generated
+
+Check stored (last 5 maintained)
+
+🔹 Features Implemented
+
+Link creation
+
+Tag support
+
+On-demand check
+
+Diff generation
+
+AI summary
+
+History retention (last 5)
+
+Backend health endpoint (/status)
+
+Basic input validation
+
+Clean minimal UI
+
+🔹 Status Endpoint
+
+GET /status
+
+Returns:
+
+{
+  "backend": "ok",
+  "database": "connected",
+  "llm": "configured"
+}
+🔹 Environment Variables
+
+Backend:
+
+MONGO_URI
+
+OPENAI_API_KEY
+
+PORT
+
+Frontend:
+
+VITE_API_URL
+
+🔹 Limitations
+
+No scheduled automatic checks
+
+No authentication
+
+No advanced diff visualization
+
+Basic UI styling
+
+🔹 Future Improvements
+
+Scheduled cron-based monitoring
+
+Email alerts
+
+Improved diff UI highlighting
+
+Authentication system
+
+Tag filtering & grouping
