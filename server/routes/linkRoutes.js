@@ -26,6 +26,7 @@ router.post("/", async (req, res) => {
 
     res.status(201).json(newLink);
   } catch (err) {
+    console.error("Error creating link:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -46,58 +47,76 @@ router.get("/", async (req, res) => {
  * Check a link for changes
  */
 router.post("/:id/check", async (req, res) => {
+  console.log(`Starting check for ID: ${req.params.id}`);
+  
   try {
     const link = await Link.findById(req.params.id);
     if (!link) {
       return res.status(404).json({ error: "Link not found" });
     }
 
-    // Fetch current content
+    // 1. Fetch current content
+    console.log(`Fetching content for: ${link.url}`);
     const newContent = await fetchPageText(link.url);
+    if (!newContent) throw new Error("Could not fetch page content (empty response)");
 
-    // Get last snapshot
+    // 2. Get last snapshot
     const lastCheck = await CheckHistory.findOne({ linkId: link._id })
       .sort({ createdAt: -1 });
 
     const oldContent = lastCheck?.contentSnapshot || "";
 
-    // Generate diff
+    // 3. Generate diff
     const diff = generateDiff(oldContent, newContent);
 
-    // 🚨 If no changes detected, skip OpenAI call
-    if (!diff || diff.trim() === "") {
+    // 4. Check logic: If no changes AND it's not the first time
+    if (oldContent !== "" && (!diff || diff.trim() === "")) {
+      console.log("No changes detected since last check.");
       return res.json({
         message: "No changes detected",
         linkId: link._id
       });
     }
 
-    // Generate summary via LLM
-    const summary = await generateSummary(diff);
+    // 5. Generate summary via LLM (Gemini/OpenAI)
+    console.log("Sending diff to AI for summary...");
+    const summary = await generateSummary(diff || "Initial snapshot of the page.");
 
-    // Save new check
+    // 6. Save new check
     const newCheck = await CheckHistory.create({
       linkId: link._id,
       contentSnapshot: newContent,
-      diff,
-      summary
+      diff: diff || "Initial check - no previous data.",
+      summary: summary || "Summary could not be generated."
     });
 
-    // Keep only last 5 checks
-    const checks = await CheckHistory.find({ linkId: link._id })
-      .sort({ createdAt: -1 });
-
-    if (checks.length > 5) {
-      const extraChecks = checks.slice(5);
-      for (let check of extraChecks) {
-        await CheckHistory.findByIdAndDelete(check._id);
+    // 7. Cleanup: Keep only last 5 checks
+    const checksCount = await CheckHistory.countDocuments({ linkId: link._id });
+    if (checksCount > 5) {
+      const oldestChecks = await CheckHistory.find({ linkId: link._id })
+        .sort({ createdAt: 1 }) // Oldest first
+        .limit(checksCount - 5);
+      
+      for (let old of oldestChecks) {
+        await CheckHistory.findByIdAndDelete(old._id);
       }
     }
 
+    console.log("Check completed successfully!");
     res.json(newCheck);
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // This detailed log will show up in your Render Logs!
+    console.error("❌ CRITICAL CHECK ERROR:", {
+      message: err.message,
+      stack: err.stack,
+      linkId: req.params.id
+    });
+
+    res.status(500).json({ 
+      error: "Check failed", 
+      details: err.message 
+    });
   }
 });
 
