@@ -56,8 +56,8 @@ app.get("/status", async (req, res) => {
 app.use(express.static(path.join(__dirname, "client", "dist")));
 
 // 5. Handle Frontend Routing (CATCH-ALL)
-// Updated for Express 5 compatibility: Uses a named parameter with a wildcard
-app.get("/:any*", (req, res) => {
+// Using app.use with a function instead of a path string to avoid regex errors
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
 });
 
