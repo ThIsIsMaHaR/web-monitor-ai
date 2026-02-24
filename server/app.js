@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security Middleware (Fixed CSP for Google Fonts)
+// 1. Security Middleware
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -35,7 +35,7 @@ app.use(
 app.use(cors());
 app.use(express.json());
 
-// 3. API Routes (Must be BEFORE static files)
+// 3. API Routes
 app.use("/links", linkRoutes);
 
 /**
@@ -55,13 +55,15 @@ const buildPath = path.join(__dirname, "client", "dist");
 app.use(express.static(buildPath));
 
 // 5. Handle Frontend Routing (CATCH-ALL)
-// Using a regex-free approach for Express 5 compatibility
-app.get("*", (req, res) => {
-  // Guard: If the request looks like an API call but wasn't caught above, 
-  // return 404 JSON instead of HTML to prevent the frontend .map() crash.
+// Using app.use() with NO path string is the bulletproof way 
+// to avoid "Missing parameter name" errors in Express 5.
+app.use((req, res, next) => {
+  // Guard: If the request is for an API but missed the routes above
   if (req.url.startsWith("/links") || req.url.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
+  
+  // Otherwise, send the React app
   res.sendFile(path.join(buildPath, "index.html"));
 });
 
