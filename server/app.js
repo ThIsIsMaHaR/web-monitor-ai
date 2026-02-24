@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security Middleware (Fixes Google Font & CSP Errors)
+// 1. Security Middleware
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -35,7 +35,7 @@ app.use(
 app.use(cors());
 app.use(express.json());
 
-// 3. API Routes (IMPORTANT: These must come BEFORE static files)
+// 3. API Routes
 app.use("/links", linkRoutes);
 
 /**
@@ -55,12 +55,9 @@ const buildPath = path.join(__dirname, "client", "dist");
 app.use(express.static(buildPath));
 
 // 5. Handle Frontend Routing (CATCH-ALL)
-// This ensures that if the request isn't an API or a real file, we send index.html
-app.get("*", (req, res) => {
-  // If the request starts with /links or /status, don't send HTML (prevents frontend map error)
-  if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
-    return res.status(404).json({ error: "API route not found" });
-  }
+// FIX: Express 5 requires wildcards to be named. 
+// '{*path}' matches everything including the root.
+app.get("{/*path}", (req, res) => {
   res.sendFile(path.join(buildPath, "index.html"));
 });
 
