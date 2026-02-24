@@ -16,7 +16,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security Middleware
+// 1. Security & Standard Middleware
+// Set CSP to false temporarily if you still see blank pages, otherwise keep this robust version
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -31,40 +32,39 @@ app.use(
   })
 );
 
-// 2. Standard Middleware
 app.use(cors());
 app.use(express.json());
 
-// 3. API Routes
+// 2. API Routes
 app.use("/links", linkRoutes);
 
-/**
- * Health + Status Route
- */
 app.get("/status", async (req, res) => {
   res.json({
     backend: "ok",
-    database:
-      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-    llm: process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY ? "configured" : "missing"
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    llm: process.env.GEMINI_API_KEY ? "configured" : "missing"
   });
 });
 
-// 4. Serve Frontend Static Files
-const buildPath = path.join(__dirname, "client", "dist");
+// 3. Serve Frontend Static Files
+// Use path.resolve to ensure Render finds the folder correctly
+const buildPath = path.resolve(__dirname, "client", "dist");
 app.use(express.static(buildPath));
 
-// 5. Handle Frontend Routing (CATCH-ALL)
-// Using app.use() with NO path string is the bulletproof way 
-// to avoid "Missing parameter name" errors in Express 5.
-app.use((req, res, next) => {
-  // Guard: If the request is for an API but missed the routes above
-  if (req.url.startsWith("/links") || req.url.startsWith("/status")) {
-    return res.status(404).json({ error: "API route not found" });
+// 4. Handle Frontend Routing (CATCH-ALL)
+// Express 5 specific syntax: Using a named parameter with the asterisk
+app.get("/:any*", (req, res) => {
+  // If the request is trying to hit an API route that doesn't exist, return JSON
+  if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
+    return res.status(404).json({ error: "API endpoint not found" });
   }
   
-  // Otherwise, send the React app
-  res.sendFile(path.join(buildPath, "index.html"));
+  // Otherwise, serve the React index.html
+  res.sendFile(path.join(buildPath, "index.html"), (err) => {
+    if (err) {
+      res.status(500).send("Error loading frontend. Ensure 'npm run build' was successful.");
+    }
+  });
 });
 
 // MongoDB Connection
