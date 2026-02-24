@@ -1,22 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function generateSummary(diff) {
+  // Pull the Gemini key from Render's environment
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.error("❌ GEMINI_API_KEY missing");
-    return "Summary unavailable: API Key not configured.";
+    console.error("❌ GEMINI_API_KEY is missing in Render");
+    return "Summary unavailable: Gemini API Key not found.";
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
+    // Using the faster, free-tier friendly model
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
-      You are a website change monitor. 
-      Summarize the following website changes clearly for a user.
-      
-      Changes:
+      You are a web monitor. Summarize the following website content changes:
       ${diff}
     `;
 
@@ -25,7 +24,7 @@ export async function generateSummary(diff) {
     return response.text();
 
   } catch (error) {
-    console.error("❌ Gemini Error:", error.message);
-    return "Summary unavailable: AI service error.";
+    console.error("❌ Gemini API Error:", error.message);
+    return `Summary unavailable: AI error (${error.message})`;
   }
 }
