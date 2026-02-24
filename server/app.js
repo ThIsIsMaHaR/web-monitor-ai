@@ -57,7 +57,7 @@ app.use(express.static(path.join(__dirname, "client", "dist")));
 
 // 5. Handle Frontend Routing
 // If a user hits a route not defined above, send them to the React app
-app.get("*", (req, res) => {
+app.get("(.*)", (req, res) => {
   res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
 });
 
