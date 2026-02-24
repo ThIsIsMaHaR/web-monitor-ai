@@ -1,42 +1,31 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export async function generateSummary(content) {
-  // 1. Validate if key exists
-  const apiKey = process.env.OPENAI_API_KEY;
-  
-  if (!apiKey || apiKey.trim() === "") {
-    console.error("❌ OPENAI_API_KEY is missing in Render environment variables.");
-    return "Summary unavailable: No API key found.";
+export async function generateSummary(diff) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.error("❌ GEMINI_API_KEY missing");
+    return "Summary unavailable: API Key not configured.";
   }
 
-  const openai = new OpenAI({
-    apiKey: apiKey,
-  });
-
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Most cost-effective model for summaries
-      messages: [
-        {
-          role: "system",
-          content: "You summarize website content changes clearly and concisely.",
-        },
-        {
-          role: "user",
-          content: `Here is the difference in content from a website. Summarize what changed: \n\n${content}`,
-        },
-      ],
-    });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    return response.choices[0].message.content;
+    const prompt = `
+      You are a website change monitor. 
+      Summarize the following website changes clearly for a user.
+      
+      Changes:
+      ${diff}
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+
   } catch (error) {
-    console.error("❌ OpenAI API Error:", error.message);
-    
-    // Check for specific OpenAI errors (like Quota)
-    if (error.message.includes("insufficient_quota")) {
-      return "Summary unavailable: OpenAI account out of credits.";
-    }
-    
-    return `Summary unavailable: AI error (${error.message})`;
+    console.error("❌ Gemini Error:", error.message);
+    return "Summary unavailable: AI service error.";
   }
 }
