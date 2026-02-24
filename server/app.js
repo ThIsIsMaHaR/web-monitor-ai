@@ -55,9 +55,9 @@ app.get("/status", async (req, res) => {
 // This tells Express to look into server/client/dist
 app.use(express.static(path.join(__dirname, "client", "dist")));
 
-// 5. Handle Frontend Routing
-// If a user hits a route not defined above, send them to the React app
-app.get("(.*)", (req, res) => {
+// 5. Handle Frontend Routing (CATCH-ALL)
+// Updated for Express 5 compatibility: Uses a named parameter with a wildcard
+app.get("/:any*", (req, res) => {
   res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
 });
 
