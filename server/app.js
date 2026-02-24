@@ -25,7 +25,7 @@ app.use(
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         "img-src": ["'self'", "data:", "https://*"],
-        "connect-src": ["'self'"], // Allows frontend to talk to your API
+        "connect-src": ["'self'"], 
       },
     },
   })
@@ -35,12 +35,11 @@ app.use(
 app.use(cors());
 app.use(express.json());
 
-// 3. API Routes
+// 3. API Routes (IMPORTANT: These must come BEFORE static files)
 app.use("/links", linkRoutes);
 
 /**
  * Health + Status Route
- * Required by assignment
  */
 app.get("/status", async (req, res) => {
   res.json({
@@ -51,14 +50,18 @@ app.get("/status", async (req, res) => {
   });
 });
 
-// 4. Serve Frontend Static Files (from Vite build)
-// This tells Express to look into server/client/dist
-app.use(express.static(path.join(__dirname, "client", "dist")));
+// 4. Serve Frontend Static Files
+const buildPath = path.join(__dirname, "client", "dist");
+app.use(express.static(buildPath));
 
 // 5. Handle Frontend Routing (CATCH-ALL)
-// Using app.use with a function instead of a path string to avoid regex errors
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
+// This ensures that if the request isn't an API or a real file, we send index.html
+app.get("*", (req, res) => {
+  // If the request starts with /links or /status, don't send HTML (prevents frontend map error)
+  if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
+    return res.status(404).json({ error: "API route not found" });
+  }
+  res.sendFile(path.join(buildPath, "index.html"));
 });
 
 // MongoDB Connection
