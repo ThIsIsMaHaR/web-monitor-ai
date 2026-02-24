@@ -17,7 +17,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // 1. Security & Standard Middleware
-// Set CSP to false temporarily if you still see blank pages, otherwise keep this robust version
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -47,22 +46,22 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
-// Use path.resolve to ensure Render finds the folder correctly
 const buildPath = path.resolve(__dirname, "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// Express 5 specific syntax: Using a named parameter with the asterisk
-app.get("/:any*", (req, res) => {
-  // If the request is trying to hit an API route that doesn't exist, return JSON
+// Using a Regex literal (/.*/) is the most robust way to avoid 
+// "Missing parameter name" errors in Express 5.0.
+app.get(/.*/, (req, res) => {
+  // Guard: If the request looks like an API call but wasn't caught above, 
+  // return 404 JSON instead of HTML to prevent the frontend .map() crash.
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
-    return res.status(404).json({ error: "API endpoint not found" });
+    return res.status(404).json({ error: "API route not found" });
   }
-  
-  // Otherwise, serve the React index.html
+
   res.sendFile(path.join(buildPath, "index.html"), (err) => {
     if (err) {
-      res.status(500).send("Error loading frontend. Ensure 'npm run build' was successful.");
+      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
     }
   });
 });
