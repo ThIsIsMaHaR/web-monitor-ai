@@ -12,40 +12,39 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const app = express();
 
+// Security Middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Disabling temporarily to confirm it's not a block
+  contentSecurityPolicy: false, // Relaxed for initial deployment success
   crossOriginEmbedderPolicy: false 
 }));
 app.use(cors());
 app.use(express.json());
 
+// API Routes
 app.use("/links", linkRoutes);
 
-// --- DYNAMIC PATH DETECTION ---
-const rootDir = process.cwd();
-const possiblePaths = [
-  path.join(rootDir, "client", "dist"),
-  path.join(rootDir, "frontend", "dist"),
-  path.join(rootDir, "dist"),
-  path.join(rootDir, "client", "build"),
-  path.join(rootDir, "build")
-];
+// --- STATIC FILE SERVING ---
+// Since app.js is inside /server, and 'npm run build' runs inside /server,
+// the 'dist' folder will be created at /server/dist.
+const buildPath = path.join(__dirname, "dist");
 
-let buildPath = possiblePaths.find(p => fs.existsSync(path.join(p, "index.html")));
+console.log("🛠️  SYSTEM: Attempting to serve from:", buildPath);
 
-if (buildPath) {
-  console.log("✅ SUCCESS: Serving frontend from:", buildPath);
+if (fs.existsSync(path.join(buildPath, "index.html"))) {
   app.use(express.static(buildPath));
-  app.get("/*", (req, res) => {
+  app.get("*", (req, res) => {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  console.log("❌ ERROR: No build folder found in any of these locations:", possiblePaths);
-  app.get("/", (req, res) => res.send("Backend is running, but Frontend build is missing. Check logs."));
+  app.get("/", (req, res) => {
+    res.status(200).send("Backend is live. Frontend build (dist) not found yet.");
+  });
 }
 
+// Database
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.error("❌ MongoDB Error:", err));
