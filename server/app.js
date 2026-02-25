@@ -46,22 +46,24 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
-const buildPath = path.resolve(__dirname, "client", "dist");
+// Note: We go up one level because app.js is inside the 'server' folder
+const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// Using a Regex literal (/.*/) is the most robust way to avoid 
-// "Missing parameter name" errors in Express 5.0.
-app.get(/.*/, (req, res) => {
-  // Guard: If the request looks like an API call but wasn't caught above, 
-  // return 404 JSON instead of HTML to prevent the frontend .map() crash.
+// We use the string "/*" which is the safest catch-all for Express 5
+app.get("*", (req, res) => {
+  // Guard: If the request looks like an API call but wasn't caught above
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
 
-  res.sendFile(path.join(buildPath, "index.html"), (err) => {
+  const indexPath = path.join(buildPath, "index.html");
+  
+  res.sendFile(indexPath, (err) => {
     if (err) {
-      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
+      console.error("Frontend Error:", err);
+      res.status(500).send("Frontend build not found at: " + indexPath);
     }
   });
 });
