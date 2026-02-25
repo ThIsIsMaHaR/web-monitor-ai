@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-// Since your backend uses app.use("/links", ...), 
-// we leave this as an empty string for relative paths.
 const API = import.meta.env.VITE_API_URL || "";
 
 function App() {
@@ -32,7 +30,6 @@ function App() {
 
   const addLink = async () => {
     if (!url) return alert("URL is required");
-    // Ensure URL has protocol
     const cleanUrl = url.startsWith("http") ? url : `https://${url}`;
     
     try {
