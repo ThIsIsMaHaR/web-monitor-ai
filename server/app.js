@@ -20,21 +20,21 @@ const app = express();
 app.use(
   helmet({
     contentSecurityPolicy: {
-      useDefaults: true, // Loads standard security defaults
+      useDefaults: true, // This ensures we don't start from 'none'
       directives: {
         // Allow resources from your own domain
         "default-src": ["'self'"],
         
-        // Allow Google Fonts CSS and internal styles
+        // Allow Google Fonts CSS and any inline styles (needed for Vite/React)
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         
-        // Allow actual font files from Google's static domain
+        // Allow the actual font files from Google's static domain
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         
         // Allow images from your site and external HTTPS sources
         "img-src": ["'self'", "data:", "https://*"],
         
-        // Allow frontend to talk to your backend
+        // Allow frontend to talk to your backend API
         "connect-src": ["'self'"], 
         
         "object-src": ["'none'"],
@@ -58,12 +58,14 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
+// Note: We use '..' to step out of 'server' and find 'client/dist'
 const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// FIXED FOR EXPRESS 5: The wildcard must be named.
+// FIXED FOR EXPRESS 5: The wildcard MUST have a name (we used 'path')
 app.get("/*path", (req, res) => {
+  // Guard: If an API request fails, don't accidentally send back index.html
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
@@ -73,7 +75,7 @@ app.get("/*path", (req, res) => {
   res.sendFile(indexPath, (err) => {
     if (err) {
       console.error("Frontend Error:", err);
-      res.status(500).send("Frontend build not found.");
+      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
     }
   });
 });
