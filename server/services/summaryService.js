@@ -3,18 +3,22 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/ge
 export async function generateSummary(content) {
   const apiKey = process.env.GEMINI_API_KEY;
 
-  // --- DEBUG LOGS FOR RENDER ---
-  console.log("--- GEMINI DEBUG ---");
+  // --- 🛠️ RENDER DEBUG LOGS ---
+  console.log("--- AI SERVICE CHECK ---");
+  console.log("Current Time:", new Date().toLocaleTimeString());
   console.log("Key Found in Env:", !!apiKey);
   if (apiKey) {
     console.log("Key starts with:", apiKey.substring(0, 4));
     console.log("Key length:", apiKey.length);
+  } else {
+    console.warn("CRITICAL: GEMINI_API_KEY is missing from Render Dashboard!");
   }
-  console.log("--------------------");
+  console.log("------------------------");
 
+  // FIX: We RETURN a string instead of THROWING an error.
+  // This ensures the database saves the check and the timestamp updates on your site!
   if (!apiKey) {
-    // We throw an error here so the controller knows to stop
-    throw new Error("Missing API Key in Environment Variables");
+    return "AI Summary unavailable: Missing API Key in Render Settings.";
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -30,8 +34,8 @@ export async function generateSummary(content) {
   });
 
   try {
-    const sanitizedContent = content ? content.substring(0, 1500) : "";
-    if (sanitizedContent.length < 10) return "No significant changes to summarize.";
+    const sanitizedContent = content ? content.substring(0, 2000) : "";
+    if (sanitizedContent.length < 20) return "No significant changes to summarize.";
 
     const prompt = `Summarize these website changes in two short sentences. Ignore code. 
       If it's just technical metadata, say 'Technical site update.'
@@ -39,14 +43,14 @@ export async function generateSummary(content) {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text().trim();
+    return response.text().trim() || "AI returned empty response.";
     
   } catch (error) {
     console.error("❌ GEMINI API ERROR:", error.message);
     
     if (error.message.includes("location") || error.status === 400) {
-      return "AI Location Error: Render's IP is blocked. Try a new API Key or check Render Region.";
+      return "AI Location Error: Render's IP is restricted by Google.";
     }
-    return "Summary unavailable: AI service error.";
+    return `Summary unavailable: ${error.message.substring(0, 30)}...`;
   }
 }
