@@ -15,12 +15,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // 1. SECURITY & MIDDLEWARE
-app.use(helmet({ contentSecurityPolicy: false })); // Relaxed for deployment
+app.use(helmet({ contentSecurityPolicy: false })); 
 app.use(cors());
 app.use(express.json());
 
 // 2. API ROUTES
-// CRITICAL: These must stay ABOVE the frontend catch-all
+// Define these FIRST
 app.use("/links", linkRoutes);
 
 // 3. FRONTEND SERVING
@@ -29,27 +29,25 @@ const buildPath = path.join(__dirname, "client", "dist");
 console.log("🛠️  SYSTEM: Looking for frontend at:", buildPath);
 
 if (fs.existsSync(path.join(buildPath, "index.html"))) {
-  // Serve static files (CSS, JS, Images)
   app.use(express.static(buildPath));
   
   /**
-   * EXPRESS 5 FIX:
-   * Express 5 uses a new version of path-to-regexp.
-   * The old "/:path*" or "/*" syntax causes a crash.
-   * Using "(.*)" tells Express to capture any remaining string.
+   * EXPRESS 5 STABLE FIX:
+   * The new path-to-regexp requires named parameters.
+   * "/:splat(.*)" names the capture group "splat" and 
+   * matches everything that follows.
    */
-  app.get("(.*)", (req, res) => {
-    // Safety check: If an API call accidentally hits this, return 404
+  app.get("/:splat(.*)", (req, res) => {
+    // If an API call accidentally hits this, return 404
     if (req.path.startsWith("/links")) {
       return res.status(404).json({ error: "API route not found" });
     }
-    // Otherwise, serve the React app
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
   console.log("❌ ERROR: dist folder not found at:", buildPath);
   app.get("/", (req, res) => {
-    res.send("Backend is live. Frontend build not found at /server/client/dist.");
+    res.send("Backend is live. Frontend build not found.");
   });
 }
 
