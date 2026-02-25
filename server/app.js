@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import linkRoutes from "./routes/linkRoutes.js";
 
@@ -14,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. SECURITY (Explicitly allowing Google Fonts & relaxing for Vite)
+// 1. SECURITY (Optimized for Vite + External Fonts)
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -49,18 +50,21 @@ app.get("/status", (req, res) => {
   });
 });
 
-// 3. STATIC FILES (The "Last Resort" Path Logic)
+// 3. STATIC FILES (Smart Path Detection)
 const rootDir = process.cwd();
-// This resolves the path to the 'client/dist' folder regardless of where node starts
-const buildPath = path.resolve(rootDir, "client", "dist");
+let buildPath = path.join(rootDir, "client", "dist");
 
-console.log("🛠️  DEBUG: Attempting to serve frontend from:", buildPath);
+// AUTO-FIX: If /client/dist doesn't exist, check root /dist
+if (!fs.existsSync(buildPath)) {
+    buildPath = path.join(rootDir, "dist");
+}
+
+console.log("🛠️  SYSTEM: Serving frontend from:", buildPath);
 
 app.use(express.static(buildPath));
 
-// 4. CATCH-ALL (MUST BE AFTER API ROUTES)
+// 4. CATCH-ALL ROUTE
 app.get("/*path", (req, res) => {
-  // Guard for API calls
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
@@ -69,13 +73,13 @@ app.get("/*path", (req, res) => {
   
   res.sendFile(indexPath, (err) => {
     if (err) {
-      console.error("❌ CRITICAL ERROR: index.html not found at:", indexPath);
-      res.status(500).send(`Frontend build missing. Server looked at: ${indexPath}`);
+      console.error("❌ ERROR: index.html not found at:", indexPath);
+      res.status(500).send(`Frontend files missing. Server looked in: ${indexPath}`);
     }
   });
 });
 
-// DATABASE
+// 5. DATABASE CONNECTION
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.error("❌ MongoDB Error:", err));
