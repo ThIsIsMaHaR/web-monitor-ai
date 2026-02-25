@@ -16,28 +16,27 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security Middleware with Google Fonts Whitelist
+// 1. Security & Standard Middleware
 app.use(
   helmet({
     contentSecurityPolicy: {
-      useDefaults: true,
+      useDefaults: true, // Loads standard security defaults
       directives: {
-        // Allow your own domain by default
+        // Allow resources from your own domain
         "default-src": ["'self'"],
         
-        // Allow Google Fonts CSS and inline styles
+        // Allow Google Fonts CSS and internal styles
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         
-        // Allow the actual font files from Google
+        // Allow actual font files from Google's static domain
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         
         // Allow images from your site and external HTTPS sources
         "img-src": ["'self'", "data:", "https://*"],
         
-        // Allow frontend to communicate with your backend
+        // Allow frontend to talk to your backend
         "connect-src": ["'self'"], 
         
-        // Block plugins
         "object-src": ["'none'"],
       },
     },
@@ -59,14 +58,12 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
-// Note: Steps out of 'server' folder to find 'client/dist'
 const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// FIXED FOR EXPRESS 5: Using named wildcard parameter '/*path'
+// FIXED FOR EXPRESS 5: The wildcard must be named.
 app.get("/*path", (req, res) => {
-  // Prevent catching failed API calls
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
@@ -76,7 +73,7 @@ app.get("/*path", (req, res) => {
   res.sendFile(indexPath, (err) => {
     if (err) {
       console.error("Frontend Error:", err);
-      res.status(500).send("Frontend build not found. Check if 'npm run build' was successful.");
+      res.status(500).send("Frontend build not found.");
     }
   });
 });
