@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. UPDATED SECURITY (High compatibility for Vite + Google Fonts)
+// 1. SECURITY (Explicitly allowing Google Fonts)
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -31,7 +31,6 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" }
   })
 );
 
@@ -49,33 +48,28 @@ app.get("/status", (req, res) => {
   });
 });
 
-// 3. STATIC FILES PATH LOGIC
-// We try process.cwd() first, fallback to __dirname if that fails
+// 3. STATIC FILES (The 404 Fix)
 const buildPath = path.resolve(process.cwd(), "client", "dist");
-
-// Serve the static files from the React build
 app.use(express.static(buildPath));
 
-// 4. CATCH-ALL ROUTE (MUST BE LAST)
+// 4. CATCH-ALL
 app.get("/*path", (req, res) => {
-  // Guard for API routes
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
-    return res.status(404).json({ error: "API route not found" });
+    return res.status(404).json({ error: "API not found" });
   }
 
   const indexPath = path.join(buildPath, "index.html");
-  
   res.sendFile(indexPath, (err) => {
     if (err) {
-      console.error("❌ ERROR: index.html not found at:", indexPath);
-      res.status(500).send("Frontend build missing. Please check Render build logs.");
+      // THIS WILL SHOW IN RENDER LOGS IF IT FAILS
+      console.error("❌ FRONTEND MISSING AT:", indexPath);
+      res.status(500).send("Build files not found. Check build command.");
     }
   });
 });
 
-// DATABASE CONNECTION
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+  .catch(err => console.error(err));
 
 export default app;
