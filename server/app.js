@@ -51,9 +51,9 @@ const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// We use the string "/*" which is the safest catch-all for Express 5
-app.get("*", (req, res) => {
-  // Guard: If the request looks like an API call but wasn't caught above
+// FIXED FOR EXPRESS 5: The wildcard must be named. Using '/*splat' or '/*path'
+app.get("/*path", (req, res) => {
+  // Guard: Avoid catching API routes that might have failed
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
@@ -63,7 +63,7 @@ app.get("*", (req, res) => {
   res.sendFile(indexPath, (err) => {
     if (err) {
       console.error("Frontend Error:", err);
-      res.status(500).send("Frontend build not found at: " + indexPath);
+      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
     }
   });
 });
