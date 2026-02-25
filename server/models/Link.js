@@ -1,9 +1,27 @@
 import mongoose from "mongoose";
 
-const LinkSchema = new mongoose.Schema({
-  url: { type: String, required: true },
-  title: String,
-  tags: [String],
-}, { timestamps: true });
+const linkSchema = new mongoose.Schema({
+  url: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  tags: {
+    type: [String],
+    default: []
+  },
+  lastChecked: {
+    type: Date,
+    default: Date.now
+  }
+}, { 
+  // This is crucial for fixing the "Invalid Date" issue
+  timestamps: true 
+});
 
-export default mongoose.model("Link", LinkSchema);
+export default mongoose.model("Link", linkSchema);

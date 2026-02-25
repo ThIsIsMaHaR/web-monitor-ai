@@ -12,7 +12,6 @@ router.post("/", async (req, res) => {
   try {
     const { url, title, tags } = req.body;
     if (!url) return res.status(400).json({ error: "URL is required" });
-
     const newLink = await Link.create({ url, title, tags: tags || [] });
     res.status(201).json(newLink);
   } catch (err) {
@@ -30,54 +29,58 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 3. THE CHECK ROUTE (Fixed for Express 5)
+// 3. THE CHECK ROUTE (Optimized for AI & Dates)
 router.post("/:id/check", async (req, res) => {
-  console.log(`Checking link: ${req.params.id}`);
+  const { id } = req.params;
   try {
-    const link = await Link.findById(req.params.id);
+    const link = await Link.findById(id);
     if (!link) return res.status(404).json({ error: "Link not found" });
 
-    // Step A: Fetch content (Added timeout protection)
+    // Step A: Fetch page content
     let newContent;
     try {
       newContent = await fetchPageText(link.url);
     } catch (fetchErr) {
-      return res.status(500).json({ error: "Website blocked the check", details: fetchErr.message });
+      return res.status(500).json({ error: "Website unreachable", details: fetchErr.message });
     }
 
-    // Step B: Get last snapshot
+    // Step B: Get previous snapshot
     const lastCheck = await CheckHistory.findOne({ linkId: link._id }).sort({ createdAt: -1 });
     const oldContent = lastCheck?.contentSnapshot || "";
 
     // Step C: Generate Diff
     const diff = generateDiff(oldContent, newContent);
 
-    // If no changes, still save a history entry but skip AI to save credits/prevent errors
-    if (oldContent !== "" && (!diff || diff.trim() === "")) {
-      return res.json({ message: "No changes detected", linkId: link._id });
+    // Skip if no changes (unless it's the very first check)
+    if (oldContent !== "" && (!diff || diff.trim() === "" || diff === "No changes detected")) {
+      return res.json({ message: "No changes detected", lastCheck });
     }
 
-    // Step D: AI Summary (Added Fallback)
-    let summary = "Summary pending...";
+    // Step D: AI Summary Logic
+    let summary = "";
     try {
-      summary = await generateSummary(diff || "Initial check");
+      // If no old content, summarize the whole page. If changed, summarize the diff.
+      const aiInput = (oldContent === "") ? newContent.substring(0, 2500) : diff;
+      summary = await generateSummary(aiInput);
     } catch (aiErr) {
-      console.error("AI Service Error:", aiErr.message);
-      summary = "AI Summary unavailable (Check API Key)";
+      console.error("❌ AI LOG:", aiErr.message); 
+      summary = "Summary unavailable: AI service error.";
     }
 
-    // Step E: Save History
+    // Step E: Save and Return
     const newCheck = await CheckHistory.create({
       linkId: link._id,
       contentSnapshot: newContent,
       diff: diff || "Initial snapshot",
-      summary
+      summary: summary
     });
 
+    // Explicitly return the new check so the frontend gets the 'createdAt' field
     res.json(newCheck);
+
   } catch (err) {
-    console.error("Critical Check Error:", err);
-    res.status(500).json({ error: "Internal Check Failure", details: err.message });
+    console.error("❌ CHECK FAILURE:", err);
+    res.status(500).json({ error: "Internal Error", details: err.message });
   }
 });
 
