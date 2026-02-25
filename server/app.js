@@ -12,60 +12,40 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 
-// 1. SECURITY & MIDDLEWARE
-app.use(helmet({
-  contentSecurityPolicy: false, // Set to false to prevent initial CSP blocks
-  crossOriginEmbedderPolicy: false 
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
-// 2. API ROUTES
+// API
 app.use("/links", linkRoutes);
 
-app.get("/status", (req, res) => {
-  res.json({
-    backend: "ok",
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
-  });
-});
+// --- DYNAMIC DIST FINDER ---
+const findDist = () => {
+  const root = process.cwd();
+  const trials = [
+    path.join(root, "server", "dist"),
+    path.join(root, "dist"),
+    path.join(__dirname, "dist"),
+    path.join(__dirname, "..", "dist")
+  ];
+  return trials.find(p => fs.existsSync(path.join(p, "index.html")));
+};
 
-// 3. DYNAMIC STATIC FILE SERVING
-const rootDir = process.cwd();
-
-// We check these 3 locations because of your nested 'server' structure
-const possibleBuildPaths = [
-  path.join(__dirname, "dist"),          // Inside server/dist
-  path.join(rootDir, "server", "dist"),  // Absolute path to server/dist
-  path.join(rootDir, "dist")             // Root dist (fallback)
-];
-
-let buildPath = possibleBuildPaths.find((p) => fs.existsSync(path.join(p, "index.html")));
+const buildPath = findDist();
 
 if (buildPath) {
-  console.log("✅ SYSTEM: Frontend found! Serving from:", buildPath);
+  console.log("✅ SYSTEM: Serving from:", buildPath);
   app.use(express.static(buildPath));
-  
-  // Catch-all to support React Router
   app.get("*", (req, res) => {
-    // Skip if it's an API route that reached here by mistake
     if (req.path.startsWith("/links")) return res.status(404).json({ error: "API not found" });
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  console.log("⚠️  SYSTEM: No 'dist' folder found. Server is in API-only mode.");
-  console.log("Checked locations:", possibleBuildPaths);
-  app.get("/", (req, res) => {
-    res.send("Backend is running. Waiting for frontend build to complete...");
-  });
+  app.get("/", (req, res) => res.send("Backend live. Build folder (dist) not detected yet."));
 }
 
-// 4. DATABASE CONNECTION
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ MongoDB Connected"));
 
 export default app;

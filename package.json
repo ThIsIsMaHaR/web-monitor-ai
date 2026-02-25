@@ -1,10 +1,10 @@
 {
-  "name": "web-monitor-ai",
+  "name": "web-monitor-ai-root",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "node server/server.js || node server.js",
-    "build": "if [ -d \"server\" ]; then npm install --prefix server && npm run build --prefix server; else npm install && npm run build; fi"
+    "build": "npm install && (npm install --prefix server && npm run build --prefix server) || (npm install --prefix client && npm run build --prefix client) || npm run build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
