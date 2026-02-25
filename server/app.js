@@ -21,11 +21,23 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
+        // Fallback for any directive not specified - 'self' allows your own domain
         "default-src": ["'self'"],
+        
+        // Allow stylesheets from your site and Google Fonts
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        
+        // Allow the actual font files from Google
         "font-src": ["'self'", "https://fonts.gstatic.com"],
+        
+        // Allow images from your site and any external HTTPS URL
         "img-src": ["'self'", "data:", "https://*"],
+        
+        // Allow API calls (AJAX/Fetch) to your own server
         "connect-src": ["'self'"], 
+        
+        // Security best practice: block plugins like Flash
+        "object-src": ["'none'"],
       },
     },
   })
@@ -46,14 +58,14 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
-// Note: We go up one level because app.js is inside the 'server' folder
+// path.resolve steps out of 'server' to find 'client/dist'
 const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// FIXED FOR EXPRESS 5: The wildcard must be named. Using '/*splat' or '/*path'
+// FIXED FOR EXPRESS 5: Using named parameter '/*path'
 app.get("/*path", (req, res) => {
-  // Guard: Avoid catching API routes that might have failed
+  // Guard: If an API route fails, don't serve the index.html file by mistake
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
