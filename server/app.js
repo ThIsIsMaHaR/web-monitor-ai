@@ -32,12 +32,12 @@ if (fs.existsSync(path.join(buildPath, "index.html"))) {
   app.use(express.static(buildPath));
   
   /**
-   * EXPRESS 5 STABLE FIX:
-   * The new path-to-regexp requires named parameters.
-   * "/:splat(.*)" names the capture group "splat" and 
-   * matches everything that follows.
+   * EXPRESS 5 ULTIMATE FIX:
+   * Express 5 uses path-to-regexp v8+. 
+   * The syntax '*splat' is the new way to define a wildcard 
+   * that matches everything.
    */
-  app.get("/:splat(.*)", (req, res) => {
+  app.get("*splat", (req, res) => {
     // If an API call accidentally hits this, return 404
     if (req.path.startsWith("/links")) {
       return res.status(404).json({ error: "API route not found" });
