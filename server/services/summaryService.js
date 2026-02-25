@@ -2,9 +2,21 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/ge
 
 export async function generateSummary(content) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return "AI Summary unavailable: Missing API Key.";
 
-  // FORCE IPv6 via code as a last-ditch effort for Render
+  // --- DEBUG LOGS FOR RENDER ---
+  console.log("--- GEMINI DEBUG ---");
+  console.log("Key Found in Env:", !!apiKey);
+  if (apiKey) {
+    console.log("Key starts with:", apiKey.substring(0, 4));
+    console.log("Key length:", apiKey.length);
+  }
+  console.log("--------------------");
+
+  if (!apiKey) {
+    // We throw an error here so the controller knows to stop
+    throw new Error("Missing API Key in Environment Variables");
+  }
+
   const genAI = new GoogleGenerativeAI(apiKey);
   
   const model = genAI.getGenerativeModel({ 
@@ -30,11 +42,10 @@ export async function generateSummary(content) {
     return response.text().trim();
     
   } catch (error) {
-    console.error("❌ ERROR LOG:", error.message);
+    console.error("❌ GEMINI API ERROR:", error.message);
     
-    // If the error persists, it's definitely the IP address of the Render server
     if (error.message.includes("location") || error.status === 400) {
-      return "AI Location Error: Render's IP is blocked by Google. Try using a US-based Proxy or a new API Key.";
+      return "AI Location Error: Render's IP is blocked. Try a new API Key or check Render Region.";
     }
     return "Summary unavailable: AI service error.";
   }
