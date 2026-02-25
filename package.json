@@ -2,15 +2,10 @@
   "name": "web-monitor-ai",
   "version": "1.0.0",
   "type": "module",
-  "description": "AI-powered web monitoring tool",
-  "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "build": "npm install --prefix client && npm run build --prefix client"
+    "build": "if [ -d \"client\" ]; then npm install --prefix client && npm run build --prefix client; elif [ -d \"frontend\" ]; then npm install --prefix frontend && npm run build --prefix frontend; else npm install && npm run build; fi"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.5",
