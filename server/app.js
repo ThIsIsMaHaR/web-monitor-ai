@@ -29,25 +29,26 @@ const buildPath = path.join(__dirname, "client", "dist");
 console.log("🛠️  SYSTEM: Looking for frontend at:", buildPath);
 
 if (fs.existsSync(path.join(buildPath, "index.html"))) {
+  // Serve static files (CSS, JS, Images)
   app.use(express.static(buildPath));
   
   /**
-   * EXPRESS 5 ULTIMATE FIX:
-   * Express 5 uses path-to-regexp v8+. 
-   * The syntax '*splat' is the new way to define a wildcard 
-   * that matches everything.
+   * EXPRESS 5 FIX:
+   * Wildcards (*) must have a name in Express 5.
+   * Using "*splat" (no colon) is the new standard for catch-all routes.
    */
   app.get("*splat", (req, res) => {
-    // If an API call accidentally hits this, return 404
+    // Prevent API routes from falling into the frontend catch-all
     if (req.path.startsWith("/links")) {
       return res.status(404).json({ error: "API route not found" });
     }
+    // Serve the React index.html
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
   console.log("❌ ERROR: dist folder not found at:", buildPath);
   app.get("/", (req, res) => {
-    res.send("Backend is live. Frontend build not found.");
+    res.send("Backend is live. Frontend build not found. Run 'npm run build' in client.");
   });
 }
 
