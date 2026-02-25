@@ -7,20 +7,20 @@ export const fetchPageText = async (url) => {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       },
-      timeout: 10000
+      timeout: 8000
     });
 
     const $ = cheerio.load(data);
 
-    // REMOVE NOISY TAGS
-    $("script, style, nav, footer, header, noscript, svg").remove();
+    // 1. Remove all the "noise" tags that contain code/metadata
+    $("script, style, nav, footer, header, noscript, svg, symbol").remove();
 
-    // Get only the text from the body, trim extra whitespace
+    // 2. Extract text and clean up whitespace
     const cleanText = $("body").text().replace(/\s\s+/g, ' ').trim();
 
-    // Return only the first 4000 characters to keep it AI-friendly
-    return cleanText.substring(0, 4000);
+    // 3. Only send the first 3000 characters (plenty for a summary)
+    return cleanText.substring(0, 3000);
   } catch (error) {
-    throw new Error(`Failed to fetch page: ${error.message}`);
+    throw new Error(`Fetch failed: ${error.message}`);
   }
 };
