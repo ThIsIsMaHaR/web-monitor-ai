@@ -7,11 +7,10 @@ import { generateSummary } from "../services/summaryService.js";
 
 const router = express.Router();
 
+// 1. Create a link
 router.post("/", async (req, res) => {
-  console.log("📥 RECEIVED POST /links:", req.body);
   try {
     const { url, title, tags } = req.body;
-    if (!url) return res.status(400).json({ error: "URL is required" });
     const newLink = await Link.create({ url, title, tags: tags || [] });
     res.status(201).json(newLink);
   } catch (err) {
@@ -19,6 +18,7 @@ router.post("/", async (req, res) => {
   }
 });
 
+// 2. Get all links
 router.get("/", async (req, res) => {
   try {
     const links = await Link.find().sort({ createdAt: -1 });
@@ -28,37 +28,53 @@ router.get("/", async (req, res) => {
   }
 });
 
+// 3. THE CHECK ROUTE (Debugging AI)
 router.post("/:id/check", async (req, res) => {
   const { id } = req.params;
+  console.log(`🔍 STARTING CHECK for link ID: ${id}`);
+  
   try {
     const link = await Link.findById(id);
     if (!link) return res.status(404).json({ error: "Link not found" });
 
+    // Step A: Fetch
+    console.log(`🌐 Fetching content for: ${link.url}`);
     const newContent = await fetchPageText(link.url);
+    
+    // Step B: Compare
     const lastCheck = await CheckHistory.findOne({ linkId: link._id }).sort({ createdAt: -1 });
     const oldContent = lastCheck?.contentSnapshot || "";
     const diff = generateDiff(oldContent, newContent);
 
-    if (oldContent !== "" && (!diff || diff.trim() === "" || diff === "No changes detected")) {
-      return res.json({ message: "No changes detected", lastCheck });
+    // Step C: AI Summary
+    console.log(`🤖 Requesting AI Summary...`);
+    let summary = "";
+    try {
+      // Use the whole content if it's the first check, otherwise use the diff
+      const aiInput = (oldContent === "") ? newContent.substring(0, 3000) : diff;
+      summary = await generateSummary(aiInput);
+      console.log(`✅ AI Summary generated successfully`);
+    } catch (aiErr) {
+      console.error("❌ AI ERROR:", aiErr.message);
+      summary = "AI Summary failed. Check your API Key in Render Environment Variables.";
     }
 
-    const aiInput = (oldContent === "") ? newContent.substring(0, 2500) : diff;
-    const summary = await generateSummary(aiInput);
-
+    // Step D: Save
     const newCheck = await CheckHistory.create({
       linkId: link._id,
       contentSnapshot: newContent,
-      diff: diff || "Initial snapshot",
+      diff: diff || "Initial check",
       summary: summary
     });
 
     res.json(newCheck);
   } catch (err) {
-    res.status(500).json({ error: "Internal Error", details: err.message });
+    console.error("❌ CHECK ROUTE CRASHED:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
+// 4. Get history
 router.get("/:id/history", async (req, res) => {
   try {
     const checks = await CheckHistory.find({ linkId: req.params.id }).sort({ createdAt: -1 });
