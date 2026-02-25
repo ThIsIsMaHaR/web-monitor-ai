@@ -16,27 +16,28 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security & Standard Middleware
+// 1. Security Middleware with Google Fonts Whitelist
 app.use(
   helmet({
     contentSecurityPolicy: {
+      useDefaults: true,
       directives: {
-        // Fallback for any directive not specified - 'self' allows your own domain
+        // Allow your own domain by default
         "default-src": ["'self'"],
         
-        // Allow stylesheets from your site and Google Fonts
+        // Allow Google Fonts CSS and inline styles
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         
         // Allow the actual font files from Google
         "font-src": ["'self'", "https://fonts.gstatic.com"],
         
-        // Allow images from your site and any external HTTPS URL
+        // Allow images from your site and external HTTPS sources
         "img-src": ["'self'", "data:", "https://*"],
         
-        // Allow API calls (AJAX/Fetch) to your own server
+        // Allow frontend to communicate with your backend
         "connect-src": ["'self'"], 
         
-        // Security best practice: block plugins like Flash
+        // Block plugins
         "object-src": ["'none'"],
       },
     },
@@ -58,14 +59,14 @@ app.get("/status", async (req, res) => {
 });
 
 // 3. Serve Frontend Static Files
-// path.resolve steps out of 'server' to find 'client/dist'
+// Note: Steps out of 'server' folder to find 'client/dist'
 const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
 // 4. Handle Frontend Routing (CATCH-ALL)
-// FIXED FOR EXPRESS 5: Using named parameter '/*path'
+// FIXED FOR EXPRESS 5: Using named wildcard parameter '/*path'
 app.get("/*path", (req, res) => {
-  // Guard: If an API route fails, don't serve the index.html file by mistake
+  // Prevent catching failed API calls
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
@@ -75,7 +76,7 @@ app.get("/*path", (req, res) => {
   res.sendFile(indexPath, (err) => {
     if (err) {
       console.error("Frontend Error:", err);
-      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
+      res.status(500).send("Frontend build not found. Check if 'npm run build' was successful.");
     }
   });
 });
