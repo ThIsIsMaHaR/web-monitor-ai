@@ -7,37 +7,25 @@ import path from "path";
 import { fileURLToPath } from "url";
 import linkRoutes from "./routes/linkRoutes.js";
 
-// Load environment variables
 dotenv.config();
 
-// ES Modules fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. Security & Standard Middleware
+// 1. SECURITY MIDDLEWARE (Updated to be less restrictive)
 app.use(
   helmet({
     contentSecurityPolicy: {
-      useDefaults: true, // This ensures we don't start from 'none'
+      useDefaults: true, 
       directives: {
-        // Allow resources from your own domain
         "default-src": ["'self'"],
-        
-        // Allow Google Fonts CSS and any inline styles (needed for Vite/React)
+        "script-src": ["'self'", "'unsafe-inline'"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        
-        // Allow the actual font files from Google's static domain
-        "font-src": ["'self'", "https://fonts.gstatic.com"],
-        
-        // Allow images from your site and external HTTPS sources
+        "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "img-src": ["'self'", "data:", "https://*"],
-        
-        // Allow frontend to talk to your backend API
-        "connect-src": ["'self'"], 
-        
-        "object-src": ["'none'"],
+        "connect-src": ["'self'"],
       },
     },
   })
@@ -46,44 +34,32 @@ app.use(
 app.use(cors());
 app.use(express.json());
 
-// 2. API Routes
+// 2. ROUTES
 app.use("/links", linkRoutes);
 
-app.get("/status", async (req, res) => {
+app.get("/status", (req, res) => {
   res.json({
     backend: "ok",
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     llm: process.env.GEMINI_API_KEY ? "configured" : "missing"
   });
 });
 
-// 3. Serve Frontend Static Files
-// Note: We use '..' to step out of 'server' and find 'client/dist'
+// 3. STATIC FILES
 const buildPath = path.resolve(__dirname, "..", "client", "dist");
 app.use(express.static(buildPath));
 
-// 4. Handle Frontend Routing (CATCH-ALL)
-// FIXED FOR EXPRESS 5: The wildcard MUST have a name (we used 'path')
+// 4. CATCH-ALL (EXPRESS 5 COMPLIANT)
 app.get("/*path", (req, res) => {
-  // Guard: If an API request fails, don't accidentally send back index.html
-  if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
-    return res.status(404).json({ error: "API route not found" });
-  }
-
-  const indexPath = path.join(buildPath, "index.html");
+  if (req.path.startsWith("/links")) return res.status(404).json({ error: "API not found" });
   
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error("Frontend Error:", err);
-      res.status(500).send("Frontend build not found. Ensure 'npm run build' was successful.");
-    }
+  res.sendFile(path.join(buildPath, "index.html"), (err) => {
+    if (err) res.status(500).send("Build files missing. Run npm run build.");
   });
 });
 
-// MongoDB Connection
-mongoose
-  .connect(process.env.MONGO_URI)
+// DATABASE
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error("MongoDB Error:", err));
+  .catch(err => console.error(err));
 
 export default app;
