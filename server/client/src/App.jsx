@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API = import.meta.env.VITE_API_URL || "";
+// This will use the VITE_API_URL from your env, 
+// or default to /api which works for most Render setups
+const API = import.meta.env.VITE_API_URL || "/api";
 
 function App() {
   const [url, setUrl] = useState("");
@@ -24,7 +26,7 @@ function App() {
       setError(null);
     } catch (err) {
       console.error("Fetch Error:", err);
-      setError("Cannot connect to server. Check Render logs.");
+      setError("Cannot connect to server. Check API URL and Render logs.");
     }
   };
 
@@ -43,16 +45,16 @@ function App() {
     }
   };
 
-  // UPDATED: Now accepts linkTitle to refresh the view immediately
   const checkLink = async (id, linkTitle) => {
     setLoading(true);
+    const checkUrl = `${API}/links/${id}/check`;
+    console.log("Checking URL:", checkUrl); // Check this in your Browser Console!
+
     try {
-      await axios.post(`${API}/links/${id}/check`);
+      await axios.post(checkUrl);
       
-      // 1. Refresh the top-level link list (for metadata/tags)
+      // Refresh data
       await fetchLinks();
-      
-      // 2. Refresh the history view immediately so the new check appears
       await viewHistory(id, linkTitle); 
       
       alert("AI Check Complete!");
@@ -70,7 +72,6 @@ function App() {
       setSelectedHistory(Array.isArray(res.data) ? res.data : []);
       setActiveLinkName(linkTitle || "Untitled Link"); 
       
-      // Smooth scroll to results
       setTimeout(() => {
         const element = document.getElementById("history-results");
         if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -130,7 +131,7 @@ function App() {
           <hr style={{ margin: "20px 0" }} />
           
           {selectedHistory.length > 0 ? (
-            [...selectedHistory].reverse().map((item, index) => ( // Show newest first
+            [...selectedHistory].reverse().map((item, index) => ( 
               <div key={item._id} style={{ marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "15px" }}>
                 <p>
                   <strong>AI Summary:</strong> 
