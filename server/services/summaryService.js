@@ -1,33 +1,41 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 export async function generateSummary(content) {
   const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "AI Summary unavailable: Missing API Key.";
+
+  const genAI = new GoogleGenerativeAI(apiKey);
   
-  if (!apiKey) {
-    console.error("❌ DEBUG: GEMINI_API_KEY is missing from process.env");
-    return "AI Summary unavailable (Check API Key)";
-  }
+  // 1. Use the most stable flash model
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    // 2. Lower safety thresholds so technical diffs aren't blocked as "dangerous"
+    safetySettings: [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ],
+  });
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-1.5-flash as it is more stable for free tier
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // If content is too short, Gemini might throw an error. 
-    // We provide a fallback prompt.
-    const prompt = content && content.length > 10 
-      ? `Summarize these changes: ${content.substring(0, 5000)}`
-      : "A check was performed but no significant text changes were detected.";
+    // 3. Better prompt instructions to handle those "hashes"
+    const prompt = `You are a web change monitor. Below is a list of changes or website content. 
+    If the content is just a list of IDs or hashes, simply say "Technical data updated." 
+    Otherwise, summarize the key changes in 1-2 short sentences.
+    
+    CONTENT: ${content.substring(0, 3000)}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+    return response.text() || "No summary available.";
   } catch (error) {
-    // THIS IS THE MOST IMPORTANT PART:
-    console.error("❌ GEMINI CRASH DETAILS:", error.message);
+    // This logs the EXACT reason to your Render "Logs" tab
+    console.error("❌ GEMINI CRASH:", error.message);
+    
+    if (error.message.includes("location")) {
+      return "AI Error: Render server region not supported by Gemini.";
+    }
     return "Summary unavailable: AI service error.";
   }
 }
