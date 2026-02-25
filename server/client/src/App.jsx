@@ -4,7 +4,7 @@ import axios from "axios";
 // --- SMART API URL ---
 // If VITE_API_URL isn't set, we use an empty string. 
 // This means it will call 'https://your-site.onrender.com/links'
-const API = import.meta.env.VITE_API_URL || "";
+const API = import.meta.env.VITE_API_URL || "/api";
 
 function App() {
   const [url, setUrl] = useState("");
