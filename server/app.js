@@ -14,38 +14,40 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
+// Security (Relaxed CSP for initial deploy success)
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
-// API
+// API Routes
 app.use("/links", linkRoutes);
 
-// --- DYNAMIC DIST FINDER ---
-const findDist = () => {
-  const root = process.cwd();
-  const trials = [
-    path.join(root, "server", "dist"),
-    path.join(root, "dist"),
-    path.join(__dirname, "dist"),
-    path.join(__dirname, "..", "dist")
-  ];
-  return trials.find(p => fs.existsSync(path.join(p, "index.html")));
-};
+// --- DYNAMIC FRONTEND DISCOVERY ---
+const rootDir = process.cwd();
+const possiblePaths = [
+  path.join(rootDir, "server", "dist"),
+  path.join(rootDir, "dist"),
+  path.join(__dirname, "dist"),
+  path.join(__dirname, "..", "dist")
+];
 
-const buildPath = findDist();
+const buildPath = possiblePaths.find(p => fs.existsSync(path.join(p, "index.html")));
 
 if (buildPath) {
-  console.log("✅ SYSTEM: Serving from:", buildPath);
+  console.log("✅ SYSTEM: Serving frontend from:", buildPath);
   app.use(express.static(buildPath));
   app.get("*", (req, res) => {
     if (req.path.startsWith("/links")) return res.status(404).json({ error: "API not found" });
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  app.get("/", (req, res) => res.send("Backend live. Build folder (dist) not detected yet."));
+  console.log("⚠️ SYSTEM: No build folder found. Backend-only mode.");
+  app.get("/", (req, res) => res.send("Backend live. Frontend build still in progress or missing."));
 }
 
-mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ MongoDB Connected"));
+// Database
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.error("❌ MongoDB Error:", err));
 
 export default app;
