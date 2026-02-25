@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server/server.js || node server.js",
-    "build": "npm install && (npm install --prefix server && npm run build --prefix server) || (npm run build)"
+    "start": "node server/server.js",
+    "build": "npm install && npm install --prefix server/client && npm run build --prefix server/client"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
