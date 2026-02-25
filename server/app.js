@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. SECURITY (Explicitly allowing Google Fonts)
+// 1. SECURITY (Explicitly allowing Google Fonts & relaxing for Vite)
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -31,6 +31,7 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
   })
 );
 
@@ -48,28 +49,35 @@ app.get("/status", (req, res) => {
   });
 });
 
-// 3. STATIC FILES (The 404 Fix)
-const buildPath = path.resolve(process.cwd(), "client", "dist");
+// 3. STATIC FILES (The "Last Resort" Path Logic)
+const rootDir = process.cwd();
+// This resolves the path to the 'client/dist' folder regardless of where node starts
+const buildPath = path.resolve(rootDir, "client", "dist");
+
+console.log("🛠️  DEBUG: Attempting to serve frontend from:", buildPath);
+
 app.use(express.static(buildPath));
 
-// 4. CATCH-ALL
+// 4. CATCH-ALL (MUST BE AFTER API ROUTES)
 app.get("/*path", (req, res) => {
+  // Guard for API calls
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
-    return res.status(404).json({ error: "API not found" });
+    return res.status(404).json({ error: "API route not found" });
   }
 
   const indexPath = path.join(buildPath, "index.html");
+  
   res.sendFile(indexPath, (err) => {
     if (err) {
-      // THIS WILL SHOW IN RENDER LOGS IF IT FAILS
-      console.error("❌ FRONTEND MISSING AT:", indexPath);
-      res.status(500).send("Build files not found. Check build command.");
+      console.error("❌ CRITICAL ERROR: index.html not found at:", indexPath);
+      res.status(500).send(`Frontend build missing. Server looked at: ${indexPath}`);
     }
   });
 });
 
+// DATABASE
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.error(err));
+  .catch((err) => console.error("❌ MongoDB Error:", err));
 
 export default app;
