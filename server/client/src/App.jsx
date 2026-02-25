@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-// Relative path for production (Render serves both)
 const API = import.meta.env.VITE_API_URL || "";
 
 function App() {
@@ -10,6 +9,7 @@ function App() {
   const [tags, setTags] = useState("");
   const [links, setLinks] = useState([]); 
   const [selectedHistory, setSelectedHistory] = useState(null);
+  const [activeLinkName, setActiveLinkName] = useState(""); // Fixes "History for both" confusion
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -20,15 +20,11 @@ function App() {
   const fetchLinks = async () => {
     try {
       const res = await axios.get(`${API}/links`);
-      if (Array.isArray(res.data)) {
-        setLinks(res.data);
-        setError(null);
-      } else {
-        setLinks([]);
-      }
+      setLinks(Array.isArray(res.data) ? res.data : []);
+      setError(null);
     } catch (err) {
       console.error("Fetch Error:", err);
-      setError("Cannot connect to the server. Check if backend is live.");
+      setError("Cannot connect to server. Check Render logs.");
     }
   };
 
@@ -43,7 +39,7 @@ function App() {
       setUrl(""); setTitle(""); setTags("");
       fetchLinks();
     } catch (err) {
-      alert("Error adding link. Check console for details.");
+      alert("Error adding link.");
     }
   };
 
@@ -51,90 +47,81 @@ function App() {
     setLoading(true);
     try {
       await axios.post(`${API}/links/${id}/check`);
-      alert("AI Summary generated!");
+      alert("AI Check Complete!");
       fetchLinks();
     } catch (err) {
       console.error("Check Error:", err);
-      alert("AI check failed. Ensure Gemini API Key is valid.");
+      alert("AI check failed. Check Render Environment Variables.");
     } finally {
       setLoading(false);
     }
   };
 
-  const viewHistory = async (id) => {
+  const viewHistory = async (id, linkTitle) => {
     try {
       const res = await axios.get(`${API}/links/${id}/history`);
       setSelectedHistory(Array.isArray(res.data) ? res.data : []);
-      // Scroll to history section automatically
-      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+      setActiveLinkName(linkTitle || "Untitled Link"); // Set the name here
+      
+      // Smooth scroll to results
+      setTimeout(() => {
+        const element = document.getElementById("history-results");
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (err) {
       alert("Could not load history");
     }
   };
 
   return (
-    <div className="container">
+    <div className="container" style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
       <h1>Web Monitor AI</h1>
 
-      {error && (
-        <div style={{ background: "#ffeeee", padding: "10px", borderRadius: "5px", color: "red", marginBottom: "20px" }}>
-          ⚠️ {error}
-        </div>
-      )}
+      {error && <div style={{ color: "red", padding: "10px", border: "1px solid red" }}>{error}</div>}
 
-      <div className="card">
+      <div className="card" style={{ padding: "20px", marginBottom: "20px", border: "1px solid #ddd" }}>
         <h2>Add New Link</h2>
-        <input placeholder="URL (https://...)" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <input placeholder="Title (optional)" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
+        <input placeholder="URL" value={url} onChange={(e) => setUrl(e.target.value)} style={{ width: "100%", marginBottom: "10px" }} />
+        <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", marginBottom: "10px" }} />
+        <input placeholder="Tags" value={tags} onChange={(e) => setTags(e.target.value)} style={{ width: "100%", marginBottom: "10px" }} />
         <button onClick={addLink}>Add Link</button>
       </div>
 
-      <h2>Saved Links</h2>
       <div className="links-grid">
-        {links.length > 0 ? (
-          links.map((link) => (
-            <div key={link._id} className="card">
-              <strong>{link.title || "Untitled"}</strong>
-              <p style={{ fontSize: "0.8em", color: "#666", overflow: "hidden", textOverflow: "ellipsis" }}>{link.url}</p>
-              {link.tags?.length > 0 && <p><small>Tags: {link.tags.join(", ")}</small></p>}
-
-              <div style={{ marginTop: "10px" }}>
-                <button onClick={() => checkLink(link._id)} disabled={loading}>
-                  {loading ? "AI is thinking..." : "Check Now"}
-                </button>
-                <button className="secondary" style={{ marginLeft: 10 }} onClick={() => viewHistory(link._id)}>
-                  View History
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p>No links saved yet. Add one above!</p>
-        )}
+        {links.map((link) => (
+          <div key={link._id} className="card" style={{ padding: "15px", marginBottom: "10px", border: "1px solid #eee" }}>
+            <strong>{link.title || "Untitled"}</strong>
+            <p style={{ fontSize: "0.8em", color: "#666" }}>{link.url}</p>
+            <button onClick={() => checkLink(link._id)} disabled={loading}>
+              {loading ? "Checking..." : "Check Now"}
+            </button>
+            <button className="secondary" style={{ marginLeft: "10px" }} onClick={() => viewHistory(link._id, link.title)}>
+              View History
+            </button>
+          </div>
+        ))}
       </div>
 
       {selectedHistory && (
-        <div id="history-section" style={{ marginTop: "40px", borderTop: "2px solid #eee", paddingTop: "20px" }}>
-          <h2>Check History</h2>
+        <div id="history-results" style={{ marginTop: "30px", padding: "20px", background: "#f9f9f9" }}>
+          <h2>History for: {activeLinkName}</h2>
+          <button onClick={() => setSelectedHistory(null)}>Close History</button>
+          <hr />
           {selectedHistory.length > 0 ? (
             selectedHistory.map((item) => (
-              <div key={item._id} className="card" style={{ borderLeft: "5px solid #007bff" }}>
-                <p><strong>AI Summary:</strong></p>
-                <p>{item.summary || "No summary generated."}</p>
+              <div key={item._id} style={{ marginBottom: "20px", borderBottom: "1px solid #ddd", paddingBottom: "10px" }}>
+                <p><strong>AI Summary:</strong> {item.summary || "No summary available."}</p>
                 <details>
-                  <summary style={{ cursor: "pointer", color: "#007bff" }}>View Content Changes</summary>
-                  <pre style={{ whiteSpace: "pre-wrap", background: "#f8f9fa", padding: "10px", fontSize: "0.85em" }}>
-                    {item.diff || "No changes detected."}
-                  </pre>
+                  <summary style={{ color: "blue", cursor: "pointer" }}>View Technical Changes</summary>
+                  <pre style={{ fontSize: "0.8em", background: "#eee", padding: "5px" }}>{item.diff}</pre>
                 </details>
-                <p><small>Checked on: {new Date(item.checkedAt).toLocaleString()}</small></p>
+                {/* THE DATE FIX: Using createdAt instead of checkedAt */}
+                <p><small>Checked on: {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Invalid Date"}</small></p>
               </div>
             ))
           ) : (
-            <p>No history found for this link.</p>
+            <p>No history found.</p>
           )}
-          <button onClick={() => setSelectedHistory(null)} className="secondary">Close History</button>
         </div>
       )}
     </div>

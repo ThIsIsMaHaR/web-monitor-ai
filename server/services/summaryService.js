@@ -1,41 +1,33 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 
-// Load environment variables
 dotenv.config();
 
 export async function generateSummary(content) {
   const apiKey = process.env.GEMINI_API_KEY;
   
   if (!apiKey) {
-    console.error("❌ GEMINI_API_KEY is missing from process.env!");
+    console.error("❌ DEBUG: GEMINI_API_KEY is missing from process.env");
     return "AI Summary unavailable (Check API Key)";
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
+    // Using gemini-1.5-flash as it is more stable for free tier
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Clean the content a bit to prevent prompt injection or excessive tokens
-    const cleanContent = content.substring(0, 5000); 
-    
-    const prompt = `You are a professional web monitoring assistant. 
-    Summarize the following website changes or content into 2-3 concise bullet points: 
-    
-    ${cleanContent}`;
+    // If content is too short, Gemini might throw an error. 
+    // We provide a fallback prompt.
+    const prompt = content && content.length > 10 
+      ? `Summarize these changes: ${content.substring(0, 5000)}`
+      : "A check was performed but no significant text changes were detected.";
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
-    return text || "No summary could be generated.";
+    return response.text();
   } catch (error) {
-    // This will catch 401 (Invalid Key) or 429 (Rate Limit)
-    console.error("❌ Gemini API Error:", error.message);
-    
-    if (error.message.includes("401")) return "Summary unavailable: Invalid API Key.";
-    if (error.message.includes("429")) return "Summary unavailable: Rate limit exceeded.";
-    
-    return "AI Summary unavailable (Check API Key)";
+    // THIS IS THE MOST IMPORTANT PART:
+    console.error("❌ GEMINI CRASH DETAILS:", error.message);
+    return "Summary unavailable: AI service error.";
   }
 }
