@@ -14,28 +14,31 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// 1. UPDATED SECURITY (Flexible for Vite/React)
+// 1. UPDATED SECURITY (High compatibility for Vite + Google Fonts)
 app.use(
   helmet({
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Added unsafe-eval for some React builds
+        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        "script-src-elem": ["'self'", "'unsafe-inline'"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "img-src": ["'self'", "data:", "https://*"],
         "connect-src": ["'self'"],
       },
     },
-    crossOriginEmbedderPolicy: false, // Turn this off to allow external resources
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
   })
 );
 
 app.use(cors());
 app.use(express.json());
 
-// 2. ROUTES
+// 2. API ROUTES
 app.use("/links", linkRoutes);
 
 app.get("/status", (req, res) => {
@@ -46,28 +49,31 @@ app.get("/status", (req, res) => {
   });
 });
 
-// 3. STATIC FILES
-// This is the safest way to find the dist folder on Render
-const rootDir = process.cwd();
-const buildPath = path.join(rootDir, "client", "dist");
+// 3. STATIC FILES PATH LOGIC
+// We try process.cwd() first, fallback to __dirname if that fails
+const buildPath = path.resolve(process.cwd(), "client", "dist");
 
+// Serve the static files from the React build
 app.use(express.static(buildPath));
 
-// 4. CATCH-ALL
+// 4. CATCH-ALL ROUTE (MUST BE LAST)
 app.get("/*path", (req, res) => {
+  // Guard for API routes
   if (req.path.startsWith("/links") || req.path.startsWith("/status")) {
     return res.status(404).json({ error: "API route not found" });
   }
 
-  res.sendFile(path.join(buildPath, "index.html"), (err) => {
+  const indexPath = path.join(buildPath, "index.html");
+  
+  res.sendFile(indexPath, (err) => {
     if (err) {
-      console.error("❌ File not found:", path.join(buildPath, "index.html"));
-      res.status(500).send("Build files missing on server.");
+      console.error("❌ ERROR: index.html not found at:", indexPath);
+      res.status(500).send("Frontend build missing. Please check Render build logs.");
     }
   });
 });
 
-// DATABASE
+// DATABASE CONNECTION
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.error("❌ MongoDB Error:", err));
