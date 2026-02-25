@@ -20,11 +20,12 @@ export async function generateSummary(content) {
 
   try {
     // 3. Better prompt instructions to handle those "hashes"
-    const prompt = `You are a web change monitor. Below is a list of changes or website content. 
-    If the content is just a list of IDs or hashes, simply say "Technical data updated." 
-    Otherwise, summarize the key changes in 1-2 short sentences.
-    
-    CONTENT: ${content.substring(0, 3000)}`;
+    const prompt = `You are a web change detector. Look at this text from a website. 
+Ignore CSS, JavaScript code, and technical metadata. 
+Summarize any actual content changes or the main purpose of this page in 2 sentences. 
+If the content is mostly technical code, say "Technical site structure updated."
+
+CONTENT: ${content}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
