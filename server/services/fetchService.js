@@ -4,22 +4,23 @@ import * as cheerio from "cheerio";
 export const fetchPageText = async (url) => {
   try {
     const { data } = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      },
-      timeout: 8000
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 5000
     });
 
     const $ = cheerio.load(data);
 
-    // 1. Remove all the "noise" tags that contain code/metadata
-    $("script, style, nav, footer, header, noscript, svg, symbol").remove();
+    // 1. Delete everything that isn't content
+    $("script, style, nav, footer, header, noscript, svg, .Header, .footer").remove();
 
-    // 2. Extract text and clean up whitespace
-    const cleanText = $("body").text().replace(/\s\s+/g, ' ').trim();
+    // 2. Specifically for GitHub: Try to find the main content area
+    let mainContent = $("#readme").text() || $("main").text() || $("body").text();
 
-    // 3. Only send the first 3000 characters (plenty for a summary)
-    return cleanText.substring(0, 3000);
+    // 3. Clean and Truncate heavily
+    const cleanText = mainContent.replace(/\s\s+/g, ' ').trim();
+    
+    // AI works best with shorter, cleaner text
+    return cleanText.substring(0, 1500); 
   } catch (error) {
     throw new Error(`Fetch failed: ${error.message}`);
   }
