@@ -10,7 +10,7 @@ export async function generateSummary(content) {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // 1. Configure the model with permissive safety settings for technical text
+  // Configure the model with permissive safety settings for technical diffs
   const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",
     safetySettings: [
@@ -22,42 +22,37 @@ export async function generateSummary(content) {
   });
 
   try {
-    // 2. Limit content length to prevent "Noise" crashes
-    // We take the first 2500 characters to stay within safety/token limits
-    const sanitizedContent = content ? content.substring(0, 2500) : "";
+    // Sanitize and truncate the content (AI handles clean text better)
+    const sanitizedContent = content ? content.substring(0, 2000) : "";
 
-    if (!sanitizedContent || sanitizedContent.length < 10) {
-      return "No significant text content found to summarize.";
+    if (!sanitizedContent || sanitizedContent.length < 5) {
+      return "No changes detected to summarize.";
     }
 
-    // 3. Stronger system-style prompt
-    const prompt = `INSTRUCTIONS: You are a web monitor assistant. 
-      The content below is a mix of website text and technical metadata/code. 
-      1. IGNORE all CSS, JSON, JavaScript, and HTML tags.
-      2. If the text is purely technical code or IDs, respond ONLY with: "Technical site structure or metadata updated."
-      3. If there is human-readable content, summarize the main topic or changes in 2 short sentences.
+    const prompt = `INSTRUCTIONS: You are a web monitor. 
+      The content below shows changes [ADDED] or [REMOVED] from a webpage.
+      1. IGNORE all code, JSON, and CSS.
+      2. Summarize what actually changed on the page in 2 short sentences.
+      3. If the change is only technical code/IDs, say: "Technical updates to site structure."
 
-      CONTENT TO ANALYZE:
+      CONTENT:
       ${sanitizedContent}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    return text.trim() || "Summary pending...";
+    return text.trim() || "Technical update detected.";
     
   } catch (error) {
-    // This will appear in your Render "Logs" tab
-    console.error("❌ GEMINI CRASH DETAILS:", error.message);
-    
-    if (error.message.includes("location") || error.message.includes("supported")) {
-      return "AI Error: Render server region (Europe/Asia) not supported by Gemini Free Tier.";
-    }
-    
-    if (error.message.includes("User location")) {
-      return "AI Error: Region Restricted. Try a US-based Render server.";
+    // This logs the FULL error object to Render Logs for debugging
+    console.error("❌ GEMINI FULL ERROR:", error);
+
+    // Specific check for the Region/Location issue
+    if (error.message?.includes("location") || error.message?.includes("supported") || error.status === 400) {
+      return "AI Region Error: Google is blocking this Render IP. Please add NODE_OPTIONS=--dns-result-order=ipv6first to Render Env Vars.";
     }
 
-    return "Summary unavailable: AI service error.";
+    return `Summary unavailable: AI service error.`;
   }
 }
